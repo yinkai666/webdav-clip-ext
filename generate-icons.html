@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>生成图标</title>
+</head>
+<body>
+  <h1>点击按钮下载图标</h1>
+  <button onclick="generate(16)">下载 icon16.png</button>
+  <button onclick="generate(48)">下载 icon48.png</button>
+  <button onclick="generate(128)">下载 icon128.png</button>
+  <canvas id="canvas" style="display:none"></canvas>
+  <script>
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+      <rect x="24" y="8" width="80" height="112" rx="8" fill="#007AFF"/>
+      <rect x="32" y="24" width="64" height="88" rx="4" fill="#fff"/>
+      <rect x="44" y="0" width="40" height="16" rx="4" fill="#007AFF"/>
+      <rect x="52" y="4" width="24" height="8" rx="2" fill="#fff"/>
+      <rect x="40" y="40" width="48" height="6" rx="2" fill="#E5E5EA"/>
+      <rect x="40" y="56" width="40" height="6" rx="2" fill="#E5E5EA"/>
+      <rect x="40" y="72" width="44" height="6" rx="2" fill="#E5E5EA"/>
+      <rect x="40" y="88" width="32" height="6" rx="2" fill="#E5E5EA"/>
+    </svg>`;
+
+    function generate(size) {
+      const canvas = document.getElementById('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, size, size);
+        const a = document.createElement('a');
+        a.download = `icon${size}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      };
+      img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <h1>剪贴板</h1>
+        <button id="refreshBtn" class="refresh-btn">↻</button>
+      </div>
+      <button id="settingsBtn" class="header-btn">设置</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="text">文本</button>
+      <button class="tab" data-tab="files">文件</button>
+    </div>
+
+    <!-- 文本面板 -->
+    <div id="text" class="panel active">
+      <input type="text" id="searchText" class="search-input" placeholder="搜索文本...">
+      <div id="history" class="list"></div>
+      <button id="newTextBtn" class="fab">+</button>
+    </div>
+
+    <!-- 文件面板 -->
+    <div id="files" class="panel">
+      <div id="dropZone" class="drop-zone">
+        <div class="drop-zone-text">拖拽文件到此处上传</div>
+      </div>
+      <div id="uploadProgress" class="progress-bar" style="display:none">
+        <div class="progress-fill"></div>
+        <span class="progress-text">0%</span>
+      </div>
+      <div id="fileList" class="list"></div>
+      <input type="file" id="fileInput" hidden>
+      <button id="uploadBtn" class="fab">+</button>
+    </div>
+
+    <!-- 设置面板 -->
+    <div id="settings" class="panel settings-panel">
+      <div class="settings-header">
+        <button id="backBtn" class="back-btn">← 返回</button>
+        <h2>设置</h2>
+      </div>
+      <div class="settings-form">
+        <div class="form-group">
+          <label>WebDAV 地址</label>
+          <input type="text" id="url" placeholder="https://example.com/dav">
+        </div>
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="user" placeholder="用户名">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="pass" placeholder="密码">
+        </div>
+        <div class="btn-group">
+          <button id="testConfig" class="btn-secondary">测试连接</button>
+          <button id="saveConfig" class="btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div id="editor" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button id="cancelEdit" class="modal-btn">取消</button>
+          <h3 id="editorTitle">新建文本</h3>
+          <button id="saveEdit" class="modal-btn primary">保存</button>
+        </div>
+        <input type="text" id="textName" placeholder="名称（可选）">
+        <textarea id="sharedText" placeholder="输入文本内容..."></textarea>
+      </div>
+    </div>
+
+    <!-- 文件预览弹窗 -->
+    <div id="preview" class="modal">
+      <div class="modal-content preview-content">
+        <div class="modal-header">
+          <button id="closePreview" class="modal-btn">关闭</button>
+          <h3 id="previewTitle">预览</h3>
+          <button id="previewDownload" class="modal-btn primary">下载</button>
+        </div>
+        <div id="previewBody" class="preview-body"></div>
+      </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div id="deleteConfirm" class="modal">
+      <div class="modal-dialog">
+        <div class="modal-dialog-title">确认删除</div>
+        <div class="modal-dialog-msg">确定要删除这条记录吗？</div>
+        <div class="modal-dialog-actions">
+          <button id="cancelDelete" class="dialog-btn">取消</button>
+          <button id="confirmDelete" class="dialog-btn danger">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
