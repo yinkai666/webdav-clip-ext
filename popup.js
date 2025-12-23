@@ -122,6 +122,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('history').addEventListener('click', handleHistoryClick);
   $('fileList').addEventListener('click', handleFileClick);
 
+  // Drag and drop for reordering
+  setupDragSort($('history'), 'texts');
+  setupDragSort($('fileList'), 'files');
+
   // Search
   $('searchText').addEventListener('input', filterHistory);
 
@@ -258,7 +262,7 @@ async function loadHistory(showLoading = false) {
   const refreshBtn = $('refreshBtn');
   if (showLoading && refreshBtn) refreshBtn.classList.add('loading');
 
-  const files = await listDir(`${BASE_DIR}/texts`);
+  const files = await listDir(`${BASE_DIR}/texts`, true);
   if (!files.length) {
     allItems = [];
     $('history').innerHTML = '';
@@ -267,13 +271,20 @@ async function loadHistory(showLoading = false) {
     return;
   }
 
-  allItems = await Promise.all(files.slice(-20).reverse().map(async f => {
+  const items = await Promise.all(files.slice(-20).map(async f => {
     try {
-      const res = await fetch(`${baseUrl()}/${BASE_DIR}/texts/${f}`, { headers: headers() });
+      const res = await fetch(`${baseUrl()}/${BASE_DIR}/texts/${f.name}`, { headers: headers() });
       const content = res.ok ? await res.text() : '';
-      return { name: f, content };
-    } catch { return { name: f, content: '' }; }
+      return { name: f.name, content, date: f.date };
+    } catch { return { name: f.name, content: '', date: f.date }; }
   }));
+
+  // 按保存顺序排列，新文件按时间倒序在最上方
+  const stored = await chrome.storage.local.get('order_texts');
+  const order = stored.order_texts || [];
+  const newItems = items.filter(i => !order.includes(i.name)).sort((a, b) => (b.date || 0) - (a.date || 0));
+  const orderedItems = order.map(n => items.find(i => i.name === n)).filter(Boolean);
+  allItems = [...newItems, ...orderedItems];
 
   renderHistory(allItems);
   await chrome.storage.local.set({ cachedTexts: allItems });
@@ -293,8 +304,12 @@ function filterHistory() {
 }
 
 function renderHistory(items) {
+  if (!items.length) {
+    $('history').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">暂无文本<br>点击右下角 + 添加</div></div>`;
+    return;
+  }
   $('history').innerHTML = items.map(item => `
-    <div class="list-item" data-name="${escapeHtml(item.name)}" data-content="${escapeHtml(item.content)}">
+    <div class="list-item" draggable="true" data-name="${escapeHtml(item.name)}" data-content="${escapeHtml(item.content)}">
       <div class="list-item-header">
         <div class="list-item-title">${escapeHtml(item.name.replace('.txt', ''))}</div>
         <div class="list-item-time">${formatTime(item.name)}</div>
@@ -354,13 +369,29 @@ async function confirmDelete() {
   deleteTarget = null;
 }
 
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function formatDate(date) {
+  if (!date) return '';
+  return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 // File functions
 async function loadFiles() {
-  const list = await listDir(`${BASE_DIR}/files`);
+  const list = await listDir(`${BASE_DIR}/files`, true);
+  if (!list.length) {
+    $('fileList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📁</div><div class="empty-state-text">暂无文件<br>拖拽文件到上方或点击 + 上传</div></div>`;
+    return;
+  }
   $('fileList').innerHTML = list.reverse().map(f => `
-    <div class="list-item" data-name="${escapeHtml(f)}">
+    <div class="list-item" draggable="true" data-name="${escapeHtml(f.name)}">
       <div class="list-item-header">
-        <div class="list-item-title">${escapeHtml(f)}</div>
+        <div class="list-item-title">${escapeHtml(f.name)}</div>
+        <div class="list-item-meta">${formatSize(f.size)} · ${formatDate(f.date)}</div>
       </div>
       <div class="list-item-actions">
         <button data-action="preview">预览</button>
@@ -513,19 +544,58 @@ async function doUpload(file) {
   btn.style.display = 'block';
 }
 
-async function listDir(dir) {
+async function listDir(dir, withMeta = false) {
   try {
     const res = await fetch(`${baseUrl()}/${dir}/`, { method: 'PROPFIND', headers: { ...headers(), 'Depth': '1' } });
     if (!res.ok) return [];
     const text = await res.text();
-    const matches = text.match(/<D:href>[^<]+<\/D:href>/g) || [];
-    return matches.map(m => decodeURIComponent(m.replace(/<\/?D:href>/g, '').split('/').filter(Boolean).pop()))
-      .filter(n => n !== dir.split('/').pop() && !n.endsWith('/'));
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, 'text/xml');
+    const responses = xml.querySelectorAll('response');
+    const items = [];
+    responses.forEach(r => {
+      const href = r.querySelector('href')?.textContent || '';
+      const name = decodeURIComponent(href.split('/').filter(Boolean).pop());
+      if (name === dir.split('/').pop() || name.endsWith('/')) return;
+      if (withMeta) {
+        const size = r.querySelector('getcontentlength')?.textContent || '0';
+        const date = r.querySelector('getlastmodified')?.textContent || '';
+        items.push({ name, size: parseInt(size), date: date ? new Date(date) : null });
+      } else {
+        items.push(name);
+      }
+    });
+    return items;
   } catch { return []; }
 }
 
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let draggedItem = null;
+function setupDragSort(list, type) {
+  list.addEventListener('dragstart', e => {
+    draggedItem = e.target.closest('.list-item');
+    if (draggedItem) draggedItem.classList.add('dragging');
+  });
+  list.addEventListener('dragend', () => {
+    if (draggedItem) draggedItem.classList.remove('dragging');
+    draggedItem = null;
+  });
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('.list-item');
+    if (target && target !== draggedItem) {
+      const rect = target.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      target.parentNode.insertBefore(draggedItem, after ? target.nextSibling : target);
+    }
+  });
+  list.addEventListener('drop', async () => {
+    const names = [...list.querySelectorAll('.list-item')].map(el => el.dataset.name);
+    await chrome.storage.local.set({ [`order_${type}`]: names });
+  });
 }
 
 function showStatus(msg, success) {
