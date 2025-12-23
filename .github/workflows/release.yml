@@ -1,0 +1,20 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create zip
+        run: zip -r webdav-clip-ext-${{ github.ref_name }}.zip manifest.json popup.html popup.js popup.css bg.jpg icons/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: webdav-clip-ext-${{ github.ref_name }}.zip
