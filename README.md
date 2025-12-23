@@ -30,6 +30,4 @@
 - 支持 WebDAV 协议的服务器（如 Nextcloud、坚果云等）
 - Edge 或 Chrome 浏览器
 
-## 许可
 
-MIT
