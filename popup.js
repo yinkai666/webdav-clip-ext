@@ -5,6 +5,9 @@ let deleteTarget = null;
 let editingItem = null;
 let allItems = [];
 let previewCache = null;
+let previewBlobUrl = null; // 用于清理 Blob URL
+let cachedFiles = []; // 文件列表缓存
+let filesLoading = false; // 请求节流
 
 // 加密相关
 const CRYPTO_KEY_SEED = 'webdav-clipboard-v1';
@@ -105,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('confirmDelete').addEventListener('click', confirmDelete);
 
   // Preview
-  $('closePreview').addEventListener('click', () => $('preview').classList.remove('active'));
+  $('closePreview').addEventListener('click', closePreview);
   $('previewDownload').addEventListener('click', downloadFromPreview);
 
   // File upload
@@ -271,16 +274,24 @@ async function loadHistory(showLoading = false) {
     return;
   }
 
+  // 增量同步：只获取新增或修改的文件
+  const stored = await chrome.storage.local.get(['cachedTexts', 'order_texts']);
+  const cachedMap = new Map((stored.cachedTexts || []).map(i => [i.name, i]));
+
   const items = await Promise.all(files.slice(-20).map(async f => {
+    const cached = cachedMap.get(f.name);
+    // 如果缓存存在且修改时间相同，直接使用缓存
+    if (cached && cached.date && f.date && new Date(cached.date).getTime() === new Date(f.date).getTime()) {
+      return { ...cached, date: f.date?.toISOString() };
+    }
     try {
       const res = await fetch(`${baseUrl()}/${BASE_DIR}/texts/${f.name}`, { headers: headers() });
       const content = res.ok ? await res.text() : '';
-      return { name: f.name, content, date: f.date };
-    } catch { return { name: f.name, content: '', date: f.date }; }
+      return { name: f.name, content, date: f.date?.toISOString() };
+    } catch { return { name: f.name, content: '', date: f.date?.toISOString() }; }
   }));
 
   // 按保存顺序排列，新文件按时间倒序在最上方
-  const stored = await chrome.storage.local.get('order_texts');
   const order = stored.order_texts || [];
   const newItems = items.filter(i => !order.includes(i.name)).sort((a, b) => (b.date || 0) - (a.date || 0));
   const orderedItems = order.map(n => items.find(i => i.name === n)).filter(Boolean);
@@ -359,7 +370,10 @@ async function confirmDelete() {
     await fetch(`${baseUrl()}/${path}`, { method: 'DELETE', headers: headers() });
     showStatus('已删除', true);
     if (deleteTarget.type === 'text') loadHistory();
-    else loadFiles();
+    else {
+      cachedFiles = []; // 清除缓存
+      loadFiles(true);
+    }
   } catch (e) {
     showStatus('删除失败', false);
   }
@@ -377,17 +391,42 @@ function formatSize(bytes) {
 
 function formatDate(date) {
   if (!date) return '';
-  return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 // File functions
-async function loadFiles() {
+async function loadFiles(forceRefresh = false) {
+  // 请求节流
+  if (filesLoading) return;
+
+  // 从存储加载缓存
+  if (!cachedFiles.length) {
+    const stored = await chrome.storage.local.get('cachedFiles');
+    cachedFiles = stored.cachedFiles || [];
+  }
+
+  // 使用缓存（除非强制刷新）
+  if (!forceRefresh && cachedFiles.length) {
+    renderFiles(cachedFiles);
+    return;
+  }
+
+  filesLoading = true;
   const list = await listDir(`${BASE_DIR}/files`, true);
+  filesLoading = false;
+
+  cachedFiles = list.reverse().map(f => ({ ...f, date: f.date?.toISOString() }));
+  await chrome.storage.local.set({ cachedFiles });
+  renderFiles(cachedFiles);
+}
+
+function renderFiles(list) {
   if (!list.length) {
     $('fileList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📁</div><div class="empty-state-text">暂无文件<br>拖拽文件到上方或点击 + 上传</div></div>`;
     return;
   }
-  $('fileList').innerHTML = list.reverse().map(f => `
+  $('fileList').innerHTML = list.map(f => `
     <div class="list-item" draggable="true" data-name="${escapeHtml(f.name)}">
       <div class="list-item-header">
         <div class="list-item-title">${escapeHtml(f.name)}</div>
@@ -445,10 +484,25 @@ function downloadFromPreview() {
   if (previewCache) downloadBlob(previewCache.blob, previewCache.name);
 }
 
+function closePreview() {
+  $('preview').classList.remove('active');
+  // 清理 Blob URL 释放内存
+  if (previewBlobUrl) {
+    URL.revokeObjectURL(previewBlobUrl);
+    previewBlobUrl = null;
+  }
+}
+
 async function previewFile(name) {
   $('previewTitle').textContent = name;
   $('previewBody').innerHTML = '<div class="no-preview">加载中...</div>';
   $('preview').classList.add('active');
+
+  // 清理之前的 Blob URL
+  if (previewBlobUrl) {
+    URL.revokeObjectURL(previewBlobUrl);
+    previewBlobUrl = null;
+  }
 
   try {
     const res = await fetch(`${baseUrl()}/${BASE_DIR}/files/${name}`, { headers: headers() });
@@ -464,7 +518,8 @@ async function previewFile(name) {
     const textExts = ['txt', 'md', 'json', 'js', 'css', 'html', 'xml', 'log', 'csv'];
 
     if (imgExts.includes(ext)) {
-      $('previewBody').innerHTML = `<img src="${URL.createObjectURL(blob)}">`;
+      previewBlobUrl = URL.createObjectURL(blob);
+      $('previewBody').innerHTML = `<img src="${previewBlobUrl}">`;
     } else if (textExts.includes(ext)) {
       const text = await blob.text();
       $('previewBody').innerHTML = `<pre>${escapeHtml(text)}</pre>`;
@@ -521,7 +576,8 @@ async function doUpload(file) {
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           showStatus('上传成功', true);
-          loadFiles();
+          cachedFiles = []; // 清除缓存
+          loadFiles(true);
           resolve();
         } else {
           showStatus('上传失败', false);
