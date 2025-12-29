@@ -416,7 +416,14 @@ async function loadFiles(forceRefresh = false) {
   const list = await listDir(`${BASE_DIR}/files`, true);
   filesLoading = false;
 
-  cachedFiles = list.reverse().map(f => ({ ...f, date: f.date?.toISOString() }));
+  // 按保存顺序排列，新文件按时间倒序在最上方
+  const stored = await chrome.storage.local.get('order_files');
+  const order = stored.order_files || [];
+  const items = list.map(f => ({ ...f, date: f.date?.toISOString() }));
+  const newItems = items.filter(i => !order.includes(i.name)).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const orderedItems = order.map(n => items.find(i => i.name === n)).filter(Boolean);
+  cachedFiles = [...newItems, ...orderedItems];
+
   await chrome.storage.local.set({ cachedFiles });
   renderFiles(cachedFiles);
 }
@@ -546,58 +553,17 @@ function handleDrop(e) {
 }
 
 async function doUpload(file) {
-  const btn = $('uploadBtn');
-  const progress = $('uploadProgress');
-  const progressFill = progress.querySelector('.progress-fill');
-  const progressText = progress.querySelector('.progress-text');
+  showStatus('正在准备上传...', true);
 
-  btn.style.display = 'none';
-  progress.style.display = 'block';
-  progressFill.style.width = '0%';
-  progressText.textContent = '0%';
-
-  try {
-    await ensureDir(BASE_DIR);
-    await ensureDir(`${BASE_DIR}/files`);
-
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', `${baseUrl()}/${BASE_DIR}/files/${file.name}`);
-      xhr.setRequestHeader('Authorization', headers()['Authorization']);
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          progressFill.style.width = percent + '%';
-          progressText.textContent = percent + '%';
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          showStatus('上传成功', true);
-          cachedFiles = []; // 清除缓存
-          loadFiles(true);
-          resolve();
-        } else {
-          showStatus('上传失败', false);
-          reject();
-        }
-      };
-
-      xhr.onerror = () => {
-        showStatus('上传失败', false);
-        reject();
-      };
-
-      xhr.send(file);
+  const reader = new FileReader();
+  reader.onload = async () => {
+    await chrome.storage.local.set({
+      pendingUpload: { name: file.name, type: file.type, data: reader.result }
     });
-  } catch (e) {
-    showStatus('上传失败', false);
-  }
-
-  progress.style.display = 'none';
-  btn.style.display = 'block';
+    chrome.tabs.create({ url: chrome.runtime.getURL('upload.html') });
+  };
+  reader.onerror = () => showStatus('文件读取失败', false);
+  reader.readAsDataURL(file);
 }
 
 async function listDir(dir, withMeta = false) {

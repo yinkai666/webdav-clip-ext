@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "WebDAV Clipboard",
-  "version": "1.0",
+  "version": "1.2",
   "description": "通过WebDAV在设备间同步文本和文件",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",
@@ -17,5 +17,9 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": ["upload.html"],
+    "matches": ["<all_urls>"]
+  }]
 }

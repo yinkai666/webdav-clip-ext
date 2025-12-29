@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>上传文件</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f2f2f7; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { background: #fff; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 400px; text-align: center; }
+    h1 { font-size: 20px; margin-bottom: 24px; color: #333; }
+    .filename { font-size: 14px; color: #666; margin-bottom: 16px; word-break: break-all; }
+    .progress { background: #e5e5ea; border-radius: 8px; height: 24px; position: relative; overflow: hidden; margin-bottom: 16px; }
+    .progress-fill { background: #007aff; height: 100%; width: 0%; transition: width 0.2s; }
+    .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: 500; }
+    .status { font-size: 14px; color: #8e8e93; }
+    .status.success { color: #34c759; }
+    .status.error { color: #ff3b30; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>文件上传</h1>
+    <div class="filename" id="filename">准备中...</div>
+    <div class="progress">
+      <div class="progress-fill" id="progressFill"></div>
+      <span class="progress-text" id="progressText">0%</span>
+    </div>
+    <div class="status" id="status">正在上传...</div>
+  </div>
+  <script src="upload.js"></script>
+</body>
+</html>
