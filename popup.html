@@ -9,96 +9,127 @@
     <div class="header">
       <div class="header-left">
         <h1>剪贴板</h1>
-        <button id="refreshBtn" class="refresh-btn">↻</button>
+        <button id="refreshBtn" class="refresh-btn" aria-label="刷新列表" title="刷新">↻</button>
       </div>
-      <button id="settingsBtn" class="header-btn">设置</button>
+      <button id="settingsBtn" class="header-btn" aria-label="打开设置">设置</button>
+      <button id="backBtn" class="header-btn" aria-label="返回" style="display: none;">完成</button>
     </div>
 
-    <div class="tabs">
-      <button class="tab active" data-tab="text">文本</button>
-      <button class="tab" data-tab="files">文件</button>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="text" role="tab" aria-selected="true">文本</button>
+      <button class="tab" data-tab="files" role="tab" aria-selected="false">文件</button>
     </div>
 
     <!-- 文本面板 -->
-    <div id="text" class="panel active">
-      <input type="text" id="searchText" class="search-input" placeholder="搜索文本...">
-      <div id="history" class="list"></div>
-      <button id="newTextBtn" class="fab">+</button>
+    <div id="text" class="panel active" role="tabpanel">
+      <input type="text" id="searchText" class="search-input" placeholder="搜索文本..." aria-label="搜索文本">
+      <div id="history" class="list" role="list"></div>
+      <button id="newTextBtn" class="fab" aria-label="新建文本">+</button>
     </div>
 
     <!-- 文件面板 -->
-    <div id="files" class="panel">
-      <div id="dropZone" class="drop-zone">
+    <div id="files" class="panel" role="tabpanel">
+      <div id="dropZone" class="drop-zone" role="button" aria-label="拖拽文件到此处上传">
         <div class="drop-zone-text">拖拽文件到此处上传</div>
       </div>
-      <div id="uploadProgress" class="progress-bar" style="display:none">
+      <div id="uploadProgress" class="progress-bar" style="display:none" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
         <div class="progress-fill"></div>
         <span class="progress-text">0%</span>
       </div>
-      <div id="fileList" class="list"></div>
-      <input type="file" id="fileInput" hidden>
-      <button id="uploadBtn" class="fab">+</button>
+      <div id="fileList" class="list" role="list"></div>
+      <input type="file" id="fileInput" hidden aria-hidden="true">
+      <button id="uploadBtn" class="fab" aria-label="上传文件">+</button>
     </div>
 
     <!-- 设置面板 -->
     <div id="settings" class="panel settings-panel">
-      <div class="settings-header">
-        <button id="backBtn" class="back-btn">← 返回</button>
-        <h2>设置</h2>
-      </div>
       <div class="settings-form">
-        <div class="form-group">
-          <label>WebDAV 地址</label>
-          <input type="text" id="url" placeholder="https://example.com/dav">
+        <!-- 外观主题 -->
+        <div class="form-section">
+          <label class="form-label">外观主题</label>
+          <div class="theme-selector" role="radiogroup" aria-label="选择主题">
+            <button class="theme-option active" data-theme="light" role="radio" aria-checked="true">
+              <span class="theme-icon">☀️</span>
+              <span class="theme-label">浅色</span>
+            </button>
+            <button class="theme-option" data-theme="dark" role="radio" aria-checked="false">
+              <span class="theme-icon">🌙</span>
+              <span class="theme-label">深色</span>
+            </button>
+            <button class="theme-option" data-theme="system" role="radio" aria-checked="false">
+              <span class="theme-icon">💻</span>
+              <span class="theme-label">系统</span>
+            </button>
+          </div>
         </div>
-        <div class="form-group">
-          <label>用户名</label>
-          <input type="text" id="user" placeholder="用户名">
+
+        <!-- WebDAV 配置 -->
+        <div class="form-section">
+          <label class="form-label">WebDAV 配置</label>
+          <div class="form-card">
+            <div class="form-row">
+              <input type="text" id="url" placeholder="服务器地址 https://example.com/dav" class="form-input">
+            </div>
+            <div class="form-row form-row-split">
+              <input type="text" id="user" placeholder="用户名" class="form-input">
+              <div class="input-with-icon">
+                <input type="password" id="pass" placeholder="密码" class="form-input">
+                <button type="button" id="togglePass" class="input-icon-btn" aria-label="显示密码">
+                  <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>密码</label>
-          <input type="password" id="pass" placeholder="密码">
-        </div>
-        <div class="btn-group">
+
+        <!-- 操作按钮 -->
+        <div class="form-actions">
           <button id="testConfig" class="btn-secondary">测试连接</button>
-          <button id="saveConfig" class="btn-primary">保存</button>
+          <button id="saveConfig" class="btn-primary">保存配置</button>
         </div>
       </div>
     </div>
 
     <!-- 编辑弹窗 -->
-    <div id="editor" class="modal">
+    <div id="editor" class="modal" role="dialog" aria-labelledby="editorTitle" aria-modal="true">
       <div class="modal-content">
         <div class="modal-header">
-          <button id="cancelEdit" class="modal-btn">取消</button>
+          <button id="cancelEdit" class="modal-btn" aria-label="取消">取消</button>
           <h3 id="editorTitle">新建文本</h3>
-          <button id="saveEdit" class="modal-btn primary">保存</button>
+          <button id="saveEdit" class="modal-btn primary" aria-label="保存">保存</button>
         </div>
-        <input type="text" id="textName" placeholder="名称（可选）">
-        <textarea id="sharedText" placeholder="输入文本内容..."></textarea>
+        <input type="text" id="textName" placeholder="名称（可选）" aria-label="文本名称">
+        <textarea id="sharedText" placeholder="输入文本内容..." aria-label="文本内容"></textarea>
       </div>
     </div>
 
     <!-- 文件预览弹窗 -->
-    <div id="preview" class="modal">
+    <div id="preview" class="modal" role="dialog" aria-labelledby="previewTitle" aria-modal="true">
       <div class="modal-content preview-content">
         <div class="modal-header">
-          <button id="closePreview" class="modal-btn">关闭</button>
+          <button id="closePreview" class="modal-btn" aria-label="关闭">关闭</button>
           <h3 id="previewTitle">预览</h3>
-          <button id="previewDownload" class="modal-btn primary">下载</button>
+          <button id="previewDownload" class="modal-btn primary" aria-label="下载">下载</button>
         </div>
         <div id="previewBody" class="preview-body"></div>
       </div>
     </div>
 
     <!-- 删除确认弹窗 -->
-    <div id="deleteConfirm" class="modal">
+    <div id="deleteConfirm" class="modal" role="alertdialog" aria-labelledby="deleteDialogTitle" aria-describedby="deleteDialogMsg" aria-modal="true">
       <div class="modal-dialog">
-        <div class="modal-dialog-title">确认删除</div>
-        <div class="modal-dialog-msg">确定要删除这条记录吗？</div>
+        <div id="deleteDialogTitle" class="modal-dialog-title">确认删除</div>
+        <div id="deleteDialogMsg" class="modal-dialog-msg">确定要删除这条记录吗？</div>
         <div class="modal-dialog-actions">
-          <button id="cancelDelete" class="dialog-btn">取消</button>
-          <button id="confirmDelete" class="dialog-btn danger">删除</button>
+          <button id="cancelDelete" class="dialog-btn" aria-label="取消">取消</button>
+          <button id="confirmDelete" class="dialog-btn danger" aria-label="确认删除">删除</button>
         </div>
       </div>
     </div>

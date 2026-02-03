@@ -1,0 +1,12 @@
+{
+  "name": "webdav-clipboard-test",
+  "version": "1.0.0",
+  "description": "E2E tests for WebDAV Clipboard Extension",
+  "scripts": {
+    "test": "node test/e2e.test.js",
+    "test:headless": "HEADLESS=1 node test/e2e.test.js"
+  },
+  "devDependencies": {
+    "puppeteer": "^22.0.0"
+  }
+}

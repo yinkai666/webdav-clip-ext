@@ -1,2 +1,6 @@
 .claude/
+.ace-tool/
+node_modules/
+test/
+*.zip
 preview.html
