@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create zip
-        run: zip -r webdav-clip-ext-${{ github.ref_name }}.zip manifest.json popup.html popup.js popup.css bg.jpg icons/
+        run: zip -r webdav-clip-ext-${{ github.ref_name }}.zip manifest.json popup.html popup.js popup.css background.js upload.html upload.js bg.jpg icons/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
